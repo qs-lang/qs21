@@ -1,0 +1,44 @@
+
+{>
+/**
+ *  (c) 2023 Marcin Ślusarczyk (quakcin)
+ *      https://github.com/qs-lang/qs21
+ *      File System Lib (Linux only)
+ */
+}
+
+{def> fs-files> dest> path>
+  {local> 
+    out: {trim: {sys: ls -p {path} | grep -v /}} >
+    {str-split-asc: {dest}: {out}> 10}
+  }
+}
+
+{def> fs-dirs> dest> path>
+  {local> 
+    out: {trim: {sys: ls -p {path} | grep /}} >
+    {str-split-asc: {dest}: {out}> 10}
+  }
+}
+
+{def> fs-mkdir> name>
+  {sys: mkdir {name}}
+}
+
+{> 
+  r and some m and dash r and f
+  seems way too scary to add ;v
+}
+
+{>
+  WARN: mut fs-write-buffer
+}
+
+{def> fs-write> str> path>
+  {str-split-asc> fs-write-buffer: {str}> 10}
+  {sys: echo $'{str-join> fs-write-buffer> \n}'{chr: 62}{path}}
+}
+
+{def> fs-read> path>
+  {sys: cat {path}}
+}

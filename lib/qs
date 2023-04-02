@@ -1,0 +1,22 @@
+
+{>
+  for now its just playground for helper functions
+  l8er i will turn 'em into specific libraries or sth
+}
+
+{def>nl:{chr>10}}
+
+{def> do-arr> 
+  {do: {do-arr-0}-iter> 0: {{do-arr-1}-len}>
+    {def: {do-arr-0}: 
+      {
+        {do-arr-1}-{{do-arr-0}-iter}
+      }
+    }
+    {do-arr-2}
+  }
+}
+
+{def> pad> text> amount>
+  {do: i: 0: {clc: {amount}> -: {strlen: {text}}}> {} {} }{text}
+}

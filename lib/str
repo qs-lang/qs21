@@ -1,0 +1,108 @@
+
+{>
+/**
+ *  (c) 2023 Marcin Ślusarczyk (quakcin)
+ *      https://github.com/qs-lang/qs21
+ *      String Lib
+ */
+}
+
+{>
+	TODO:
+	- remove *trims
+	- add replace
+	- add contains / includes
+}
+
+{def> str-ltrim> str>
+	{local> notBlank> 0>
+		{do> i> 0: {strlen: {str}}>
+			{if: {notBlank}> => 0>
+				{def> notBlank: {if: {cc: {str}: {i}}> ~: {chr: 32}> 0> 1}}
+			>}
+				{if: {notBlank}> => 1>
+				{cc: {str}: {i}}
+			>}
+		}
+	}
+}
+
+{def> str-reverse> str>
+  {do> i> 0: {strlen: {str}}>
+      {cc: {str}: {clc: {strlen: {str}}> -: {i}}}
+  }
+}
+
+{def: str-rtrim> str>
+  {str-reverse: {str-ltrim: {str-reverse: {str}}}}
+}
+
+{def: str-trim> str>
+  {str-ltrim: {str-rtrim: {str}}}
+}
+
+{def> cc> str> idx>
+	{chr: {asc: {str}: {idx}}}
+}
+
+{def> str-split-asc> dest> str> code>
+	{local> off> 0> c>> adr>>
+		{def: {dest}-0>}
+		{do> i> 0: {strlen: {str}}>
+			{def> c: {asc: {str}: {i}}}
+			{def> adr: {dest}-{off}}
+			{if: {c}> =: {code}>
+				{def> off: {clc: {off}> +> 1}}
+				{def: {dest}-{off}>}
+			>
+				{def: {adr}: {{adr}}{chr: {c}}}
+			}
+		}
+		{def: {dest}-len: {clc: {off}}}
+	}
+}
+
+{def> str->split-chr> dest> str> char>
+	{str-split-asc: {dest}: {str}: {chr: {char}}}
+}
+
+{def> str-substr> str> off> len>
+	{do> i> 0: {clc: {len}> -> 1}>
+		{cc: {str}: {clc: {off}> +: {i}}; }
+	}
+}
+
+{def> str-split> dest> str> delim>
+	{local> 
+		delimlen: {strlen: {delim}}> 
+		i: {strlen: {str}}>
+		off> 0> 
+		sub>> 
+		adr>>
+		idx>>
+
+		{def: {dest}-0>}
+		{loop> i> 
+			{def> idx: {clc: {strlen: {str}}> -: {i}}}
+			{def> sub: {str-substr: {str}: {idx}: {delimlen}} }
+
+			{if: {sub}> ~: {delim}>
+				{def> off: {clc: {off}> +> 1}}
+				{def> i: {clc: {i}> -: {delimlen}}}
+				{def: {dest}-{off}>}
+			>
+				{def> adr: {dest}-{off}}
+				{def: {adr}: {{adr}}{cc: {str}: {idx}}}
+				{def> i: {clc: {i}> -> 1}}
+			}
+		}
+		{def: {dest}-len: {off}}
+	}
+}
+
+{def> str-join> arr> sub>
+	{do> i> 0: {{arr}-len}>
+		{{arr}-{i}}
+		{if: {i}> \: {{arr}-len}>{sub}>}
+	}
+}
