@@ -27,12 +27,22 @@ typedef struct vmem_s
   void * value;
 } vmem_t;
 
+// typedef struct sched_s
+// {
+//   struct sched_s * next;
+//   char * expr;
+//   long delay;
+// } sched_t;
+
 typedef struct qs_s
 {
   vmem_t * vmem;
   strb_t * rets;
   char * cfun;
   bool alive;
+  bool clr;
+  // int brk;
+
 } qs_t;
 
 #define STRB_SIZE 256

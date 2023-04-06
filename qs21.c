@@ -9,10 +9,11 @@ qs_t * qs_ctor ()
 {
   qs_t * self = (qs_t *) malloc(sizeof(struct qs_s));
 
+  self->alive = true;
   self->vmem = NULL;
   self->rets = NULL;
-  self->alive = true;
   self->cfun = NULL;
+  self->clr = false;
 
   return self;
 }
@@ -243,6 +244,15 @@ char * qs_eval (qs_t * self, char * expr)
           free(args[0]);
           text_mode = true;
           off = c + 1;
+
+          if (self->clr) /* temporary feature, might stick on */
+          {
+            self->clr = false;
+            free(qs_strb_cstr(rets));
+            rets = qs_strb_ctor();
+          }
+
+          /* end of caller */
         }
       }
     } /* call mode */
@@ -284,7 +294,10 @@ int qs_vmem_arr (qs_t * self, char * arr[], char * name, int maxlen)
 
 int qs_vmem_int (qs_t * self, char * name)
 {
-  return atoi(qs_vmem_cstr(self, name));
+  char * str = qs_vmem_cstr(self, name);
+  return str != NULL 
+    ? atoi(str)
+    : 0;
 }
 
 char * qs_str_alloc (char * stack)
@@ -326,16 +339,25 @@ void __qs_lib_def (qs_t * self)
   }
 
   strb_t * strb = qs_strb_ctor();
-  qs_strb_strcat(strb, "{local>", 7);
+  qs_strb_strcat(strb, "{priv>", 6);
   int i; /* {def: NAME: ARG1: ARG2: ...> CEXPR}*/
   for (i = 1; i < len - 1; i++)
-  {
+  { /* wrap around {priv} */
+    // char buff[0xFF];
+    // sprintf(buff, "%s>{v>%s-%d}>", args[i], args[0], i - 1);
+    qs_strb_strcat(strb, args[i], strlen(args[i]));
+    qs_strb_catc(strb, '>');
+    // qs_strb_strcat(strb, buff, strlen(buff));
+  }
+  for (i = 1; i < len - 1; i++)
+  { /* append defines */
     char buff[0xFF];
-    sprintf(buff, "%s>{v>%s-%d}>", args[i], args[0], i - 1);
+    sprintf(buff, "{def>%s>{v>%s-%d}}", args[i], args[0], i - 1);
     qs_strb_strcat(strb, buff, strlen(buff));
   }
   qs_strb_strcat(strb, args[len - 1], strlen(args[len - 1]));
   qs_strb_catc(strb, '}');
+
   qs_vmem_def(self, args[0], qs_strb_cstr(strb), NULL);
 }
 
@@ -365,29 +387,62 @@ void __qs_lib_use (qs_t * self)
   free(expr);
 }
 
-void __qs_lib_local (qs_t * self)
-{
+/**
+ *  TODO:
+ *  Remove and implement scope instead 
+ */
+// void __qs_lib_local (qs_t * self)
+// {
+//   strb_t * strb = qs_strb_ctor();
+//   const int len = qs_vmem_int(self, "local-len");
+//   int i;
+//   for (i = 0; i < len - 1; i += 2)
+//   {
+//     qs_strb_strcat(strb, "{def>", 5);
+
+//     char * name = qs_vmem_arr_cstr(self, "local", i); 
+//     if (name != NULL)
+//     {
+//       qs_strb_strcat(strb, name, strlen(name)); 
+//       qs_strb_catc(strb, '>');
+//       char * val = qs_vmem_cstr(self, name); 
+//       if (val != NULL)
+//         qs_strb_strcat(strb, val, strlen(val));
+//       qs_vmem_def(self, name, qs_str_alloc(qs_vmem_arr_cstr(self, "local", i + 1)), NULL);
+//     }
+//     qs_strb_catc(strb, '}');
+//   }
+//   char * inl = qs_strb_cstr(strb);
+//   char * expr = qs_str_alloc(qs_vmem_arr_cstr(self, "local", len - 1));
+//   char * rets = qs_eval(self, expr);
+//   qs_strb_strcat(self->rets, rets, strlen(rets));
+//   free(rets); 
+//   free(expr);
+//   free(qs_eval(self, inl));
+//   free(inl);
+// }
+
+void __qs_lib_priv (qs_t * self)
+{ /* temporarly remove defines */
   strb_t * strb = qs_strb_ctor();
-  const int len = qs_vmem_int(self, "local-len");
+  const int len = qs_vmem_int(self, "priv-len");
   int i;
-  for (i = 0; i < len - 1; i += 2)
+  for (i = 0; i < len - 1; i++)
   {
     qs_strb_strcat(strb, "{def>", 5);
-
-    char * name = qs_vmem_arr_cstr(self, "local", i); 
-    if (name != NULL)
-    {
-      qs_strb_strcat(strb, name, strlen(name)); 
-      qs_strb_catc(strb, '>');
-      char * val = qs_vmem_cstr(self, name); 
-      if (val != NULL)
-        qs_strb_strcat(strb, val, strlen(val));
-      qs_vmem_def(self, name, qs_str_alloc(qs_vmem_arr_cstr(self, "local", i + 1)), NULL);
-    }
+      char * name = qs_vmem_arr_cstr(self, "priv", i); 
+      if (name != NULL)
+      {
+        qs_strb_strcat(strb, name, strlen(name)); 
+        qs_strb_catc(strb, '>');
+        char * val = qs_vmem_cstr(self, name); 
+        if (val != NULL)
+          qs_strb_strcat(strb, val, strlen(val));
+      }
     qs_strb_catc(strb, '}');
   }
   char * inl = qs_strb_cstr(strb);
-  char * expr = qs_str_alloc(qs_vmem_arr_cstr(self, "local", len - 1));
+  char * expr = qs_str_alloc(qs_vmem_arr_cstr(self, "priv", len - 1));
   char * rets = qs_eval(self, expr);
   qs_strb_strcat(self->rets, rets, strlen(rets));
   free(rets); 
@@ -446,9 +501,10 @@ void __qs_lib_do (qs_t * self)
   const int delta = from < to ? 1 : -1;
   to = delta > 0 ? to + 1 : to - 1;
   int i;
-  for (i = from; i != to; i += delta)
+  for (i = from; (i + delta) != to; i += delta)
   {
-    char buff[strlen(expr) + 32]; sprintf(buff, "{local>%s>%d>%s}", iter, i, expr);
+    char buff[strlen(expr) + 0xFF]; 
+    sprintf(buff, "{priv>%s>{def>%s>%d}%s}", iter, iter, i, expr);
     char * rets = qs_eval(self, buff);
     qs_strb_strcat(self->rets, rets, strlen(rets));
     free(rets);
@@ -465,8 +521,10 @@ void __qs_lib_if (qs_t * self)
   switch (op[0])
   {
     case '=': test = left == right; break;
-    case '\\': test = left < right; break;
-    case '/': test = left > right; break;
+    case '(': test = left < right; break;
+    case ')': test = left > right; break;
+    case '[': test = left <= right; break;
+    case ']': test = left >= right; break;
     case '!': test = left != right; break;
     case '~': test = strcmp(qs_vmem_cstr(self, "if-0"), qs_vmem_cstr(self, "if-2")) == 0; break;
   }
@@ -536,12 +594,18 @@ void __qs_lib_loop (qs_t * self)
   free(testv);
 }
 
+void __qs_lib_clr (qs_t * self)
+{ 
+  self->clr = true;
+}
+
 void qs_lib (qs_t * self)
 {
   qs_vmem_def(self, "puts", NULL, __qs_lib_puts);
   qs_vmem_def(self, "def", NULL, __qs_lib_def);
   qs_vmem_def(self, "use", NULL, __qs_lib_use);
-  qs_vmem_def(self, "local", NULL, __qs_lib_local);
+  // qs_vmem_def(self, "local", NULL, __qs_lib_local);
+  qs_vmem_def(self, "priv", NULL, __qs_lib_priv);
   qs_vmem_def(self, "clc", NULL, __qs_lib_clc);
   // qs_vmem_def(self, "cc", NULL, __qs_lib_cc);
   qs_vmem_def(self, "strlen", NULL, __qs_lib_strlen);
@@ -552,5 +616,7 @@ void qs_lib (qs_t * self)
   qs_vmem_def(self, "chr", NULL, __qs_lib_chr);
   qs_vmem_def(self, "asc", NULL, __qs_lib_asc);
   qs_vmem_def(self, "sys", NULL, __qs_lib_sys);
+  qs_vmem_def(self, "clr", NULL, __qs_lib_clr);
+  // qs_vmem_def(self, "brk", NULL, __qs_lib_brk);
   qs_vmem_def(self, "v", NULL, __qs_lib_v);
 }

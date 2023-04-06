@@ -15,12 +15,13 @@
 }
 
 {def> str-ltrim> str>
-	{local> notBlank> 0>
+	{priv> notBlank> 
+		{def> notBlank> 0}
 		{do> i> 0: {strlen: {str}}>
 			{if: {notBlank}> => 0>
 				{def> notBlank: {if: {cc: {str}: {i}}> ~: {chr: 32}> 0> 1}}
 			>}
-				{if: {notBlank}> => 1>
+			{if: {notBlank}> => 1>
 				{cc: {str}: {i}}
 			>}
 		}
@@ -29,7 +30,7 @@
 
 {def> str-reverse> str>
   {do> i> 0: {strlen: {str}}>
-      {cc: {str}: {clc: {strlen: {str}}> -: {i}}}
+		{cc: {str}: {clc: {strlen: {str}}> -: {i}> -> 1}}
   }
 }
 
@@ -46,7 +47,8 @@
 }
 
 {def> str-split-asc> dest> str> code>
-	{local> off> 0> c>> adr>>
+	{priv> off> c> adr>
+		{def> off> 0}
 		{def: {dest}-0>}
 		{do> i> 0: {strlen: {str}}>
 			{def> c: {asc: {str}: {i}}}
@@ -58,7 +60,7 @@
 				{def: {adr}: {{adr}}{chr: {c}}}
 			}
 		}
-		{def: {dest}-len: {clc: {off}}}
+		{def: {dest}-len: {clc: {off}> +> 1}}
 	}
 }
 
@@ -67,21 +69,18 @@
 }
 
 {def> str-substr> str> off> len>
-	{do> i> 0: {clc: {len}> -> 1}>
+	{do> i> 0: {len}>
 		{cc: {str}: {clc: {off}> +: {i}}; }
 	}
 }
 
 {def> str-split> dest> str> delim>
-	{local> 
-		delimlen: {strlen: {delim}}> 
-		i: {strlen: {str}}>
-		off> 0> 
-		sub>> 
-		adr>>
-		idx>>
-
+	{priv> delimlen> i> off> sub> adr> idx>
+		{def> delimlen: {strlen: {delim}}}
+		{def> i: {strlen: {str}}}
+		{def> off> 0}
 		{def: {dest}-0>}
+
 		{loop> i> 
 			{def> idx: {clc: {strlen: {str}}> -: {i}}}
 			{def> sub: {str-substr: {str}: {idx}: {delimlen}} }
@@ -96,13 +95,23 @@
 				{def> i: {clc: {i}> -> 1}}
 			}
 		}
-		{def: {dest}-len: {off}}
+		{def: {dest}-len: {clc: {off}> +> 1}}
 	}
 }
 
 {def> str-join> arr> sub>
 	{do> i> 0: {{arr}-len}>
 		{{arr}-{i}}
-		{if: {i}> \: {{arr}-len}>{sub}>}
+		{if: {clc: {i}> +> 1}> (: {{arr}-len}>{sub}>}
 	}
+}
+
+{def> str-replace> str> a> b>
+	{str-split> str-replace-buff: {str}: {a}}
+	{str-join> str-replace-buff: {b}}
+}
+
+{> TODO> def> str-index-of> str> sub>
+	{str-split> str-index-of-test: #{str}#: {sub}}
+	{if: {str-index-of-test-len}> => 0>> 1}
 }

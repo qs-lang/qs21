@@ -7,19 +7,21 @@
  */
 }
 
+
 {def> fs-files> dest> path>
-  {local> 
-    out: {trim: {sys: ls -p {path} | grep -v /}} >
+  {priv> out>
+    {def> out: {trim: {sys: ls -p {path} | grep -v /}}}
     {str-split-asc: {dest}: {out}> 10}
   }
 }
 
 {def> fs-dirs> dest> path>
-  {local> 
-    out: {trim: {sys: ls -p {path} | grep /}} >
-    {str-split-asc: {dest}: {out}> 10}
-  }
+	{priv> out> 
+		{def> out: {trim: {sys: ls -p {path} | grep /}}}
+		{puts: popped {str-split-asc: {dest}: {out}> 10}}
+	}
 }
+
 
 {def> fs-mkdir> name>
   {sys: mkdir {name}}
@@ -31,7 +33,7 @@
 }
 
 {>
-  WARN: mut fs-write-buffer
+  WARN mut fs-write-buffer
 }
 
 {def> fs-write> str> path>

@@ -20,3 +20,9 @@
 {def> pad> text> amount>
   {do: i: 0: {clc: {amount}> -: {strlen: {text}}}> {} {} }{text}
 }
+
+
+{def> gets> var> expr>
+  {def: {var}: {trim: {sys> read tmp1 && echo $tmp1}}}
+  {gets-1}
+}

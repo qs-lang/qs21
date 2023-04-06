@@ -1,0 +1,49 @@
+
+{>
+/**
+ *  (c) 2023 Marcin Ślusarczyk (quakcin)
+ *      https://github.com/qs-lang/qs21
+ *      Array Lib
+ */
+}
+
+{def> arr-do> iter> name> expr>
+  {do> i> 0: {{name}-len}>
+    {priv: {iter}>
+      {def: {iter}: {v: {name}-{i}}}
+      {arr-do-2} {> fixme! }
+    }
+  }
+}
+
+{def> arr-puts> name>
+  {puts: --------- len({name}) = {{name}-len} {nl}}
+  {do> i> 0: {{name}-len}>
+    {puts: {name}[{i}] = "{v: {name}-{i}}" {nl}}
+  }
+  {puts: --------- len({name}) = {{name}-len} {nl}}
+}
+
+{def> arr-push> name> item>
+  {def: {name}-len: {clc: {{name}-len}> +> 1}}
+  {def: {name}-{{name}-len}: {item}}
+}
+
+{def> arr-pop> name>
+	{priv> idx>
+		{def> idx: {clc: {{name}-len}> -> 1}}
+		{{name}-{idx}}
+		{def: {name}-{idx}>}
+		{def: {name}-len: {idx}}
+	}
+}
+
+
+{> fix me pls }
+{def> arr-find> name> str>
+	{do> i> 0: {{name}-len}>
+		{if: {{name}-{i}}> ~: {str}>
+			{i}{brk> 5}
+		>}
+	}
+}
