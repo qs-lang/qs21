@@ -4,7 +4,6 @@
   l8er i will turn 'em into specific libraries or sth
 }
 
-{def>nl:{chr>10}}
 
 {def> do-arr> 
   {do: {do-arr-0}-iter> 0: {{do-arr-1}-len}>

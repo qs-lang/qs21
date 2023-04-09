@@ -1,32 +1,30 @@
 
 {>
-/**
- *  (c) 2023 Marcin Ślusarczyk (quakcin)
- *      https://github.com/qs-lang/qs21
- *      Array Lib
- */
+	(c) 2023 Marcin Ślusarczyk (quakcin)
+			github.com/qs-lang/qs21
+			
+			Arrays
 }
 
 {def> arr-do> iter> name> expr>
-  {do> i> 0: {{name}-len}>
-    {priv: {iter}>
-      {def: {iter}: {v: {name}-{i}}}
-      {arr-do-2} {> fixme! }
-    }
-  }
+	{do> i> 0: {{name}-len}>
+		{priv: {iter}>
+			{def: {iter}: {v: {name}-{i}}}
+			{arr-do-2}
+		}
+	}
 }
 
 {def> arr-puts> name>
-  {puts: --------- len({name}) = {{name}-len} {nl}}
-  {do> i> 0: {{name}-len}>
-    {puts: {name}[{i}] = "{v: {name}-{i}}" {nl}}
-  }
-  {puts: --------- len({name}) = {{name}-len} {nl}}
+	{puts: --------- len({name}) = {{name}-len} {nl}}
+	{do> i> 0: {{name}-len}>
+		{puts: {name}[{i}] = "{v: {name}-{i}}" {nl}}
+	}
 }
 
 {def> arr-push> name> item>
-  {def: {name}-len: {clc: {{name}-len}> +> 1}}
-  {def: {name}-{{name}-len}: {item}}
+	{def: {name}-{{name}-len}: {item}}
+	{def: {name}-len: {clc: {{name}-len}> +> 1}}
 }
 
 {def> arr-pop> name>
@@ -38,12 +36,18 @@
 	}
 }
 
-
-{> fix me pls }
-{def> arr-find> name> str>
+{def> arr-find> dest> name> str>
+	{arr-rm: {dest}}
 	{do> i> 0: {{name}-len}>
 		{if: {{name}-{i}}> ~: {str}>
-			{i}{brk> 5}
+			{arr-push: {dest}: {i}}
 		>}
 	}
+}
+
+{def> arr-rm> name>
+	{do> i> 0: {{name}-len}>
+		{def: {name}-{i}>}
+	}
+	{def: {name}-len> 0}
 }

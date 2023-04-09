@@ -13,7 +13,6 @@ qs_t * qs_ctor ()
   self->vmem = NULL;
   self->rets = NULL;
   self->cfun = NULL;
-  self->clr = false;
 
   return self;
 }
@@ -245,13 +244,6 @@ char * qs_eval (qs_t * self, char * expr)
           text_mode = true;
           off = c + 1;
 
-          if (self->clr) /* temporary feature, might stick on */
-          {
-            self->clr = false;
-            free(qs_strb_cstr(rets));
-            rets = qs_strb_ctor();
-          }
-
           /* end of caller */
         }
       }
@@ -282,7 +274,7 @@ int qs_vmem_arr_int (qs_t * self, char * name, int index)
 
 int qs_vmem_arr (qs_t * self, char * arr[], char * name, int maxlen)
 {
-  char buff[strlen(name) + 4];
+  char buff[strlen(name) + 8];
   sprintf(buff, "%s-len", name);
   const int size = qs_vmem_int(self, buff);
   const int count = size > maxlen ? maxlen : size;
@@ -387,41 +379,6 @@ void __qs_lib_use (qs_t * self)
   free(expr);
 }
 
-/**
- *  TODO:
- *  Remove and implement scope instead 
- */
-// void __qs_lib_local (qs_t * self)
-// {
-//   strb_t * strb = qs_strb_ctor();
-//   const int len = qs_vmem_int(self, "local-len");
-//   int i;
-//   for (i = 0; i < len - 1; i += 2)
-//   {
-//     qs_strb_strcat(strb, "{def>", 5);
-
-//     char * name = qs_vmem_arr_cstr(self, "local", i); 
-//     if (name != NULL)
-//     {
-//       qs_strb_strcat(strb, name, strlen(name)); 
-//       qs_strb_catc(strb, '>');
-//       char * val = qs_vmem_cstr(self, name); 
-//       if (val != NULL)
-//         qs_strb_strcat(strb, val, strlen(val));
-//       qs_vmem_def(self, name, qs_str_alloc(qs_vmem_arr_cstr(self, "local", i + 1)), NULL);
-//     }
-//     qs_strb_catc(strb, '}');
-//   }
-//   char * inl = qs_strb_cstr(strb);
-//   char * expr = qs_str_alloc(qs_vmem_arr_cstr(self, "local", len - 1));
-//   char * rets = qs_eval(self, expr);
-//   qs_strb_strcat(self->rets, rets, strlen(rets));
-//   free(rets); 
-//   free(expr);
-//   free(qs_eval(self, inl));
-//   free(inl);
-// }
-
 void __qs_lib_priv (qs_t * self)
 { /* temporarly remove defines */
   strb_t * strb = qs_strb_ctor();
@@ -467,23 +424,15 @@ void __qs_lib_clc (qs_t * self)
       case '*': ac *= val; break;
       case '/': ac /= val; break;
       case '%': ac %= val; break;
+      case '&': ac &= val; break;
+      case '|': ac |= val; break;
+      case '^': ac ^= val; break;
     }
   }
   char buff[16];
   sprintf(buff, "%d", ac);
   qs_strb_strcat(self->rets, buff, strlen(buff));
 }
-
-/**
- * WARN: Can be replaced by: "{chr: {asc> STR> IDX}}"
- *       there is no need for special purpose funct
- */
-// void __qs_lib_cc (qs_t * self)
-// {
-//   qs_strb_catc(self->rets, 
-//     qs_vmem_cstr(self, "cc-0")[qs_vmem_int(self, "cc-1")]
-//   );
-// }
 
 void __qs_lib_strlen (qs_t * self)
 {
@@ -546,6 +495,8 @@ void __qs_lib_chr (qs_t * self)
 void __qs_lib_asc (qs_t * self)
 { /* {asc: Hello: 0}*/
   char * str = qs_vmem_cstr(self, "asc-0");
+  if (str == NULL)  
+    return;
   char buff[32];
   sprintf(buff, "%d", (int) str[qs_vmem_int(self, "asc-1")]);
   qs_strb_strcat(self->rets, buff, strlen(buff));
@@ -554,33 +505,53 @@ void __qs_lib_asc (qs_t * self)
 void __qs_lib_v (qs_t * self)
 {
   char * val = qs_vmem_cstr(self, qs_vmem_cstr(self, "v-0"));
-  qs_strb_strcat(self->rets, val, strlen(val));
+  if (val != NULL)
+    qs_strb_strcat(self->rets, val, strlen(val));
 }
 
 void __qs_lib_sys (qs_t * self)
 { 
   /* most powerfull endpoint */
   char * cmd = qs_vmem_cstr(self, "sys-0");
-
   char buff[0xFF];
   FILE * handle = popen(cmd, "r");
 
   while (fgets(buff, sizeof(buff), handle) != NULL)
     qs_strb_strcat(self->rets, buff, strlen(buff));
+
   pclose(handle);
 }
 
-void __qs_lib_trim (qs_t * self)
-{
-  char * str = qs_vmem_cstr(self, "trim-0");
-  size_t loff = 0;
-  size_t roff = strlen(str) - 1;
+/**
+ * TODO: Ensure removal is possible,
+ *       causes more issues than anything
+ *       else, besides str-trim works
+ *       very well!
+ */
+// void __qs_lib_trim (qs_t * self)
+// {
+//   char * str = qs_vmem_cstr(self, "trim-0");
+//   if (str == NULL)
+//     return;
 
-  qs_str_trim(str, &loff, &roff);
-  char newstr[roff - loff + 1];
-  memcpy(newstr, str + loff, roff + 1); /* weird addressing issues ahead */
-  qs_strb_strcat(self->rets, newstr, roff - loff + 1);
-}
+//   size_t loff = 0;
+//   size_t roff = strlen(str) - 1;
+
+//   qs_str_trim(str, &loff, &roff);
+//   if (roff < loff || roff == -1 || loff >= strlen(str))
+//     return;
+
+
+//   if (roff - loff + 1 == 1)
+//   { /* weird things happen */
+//     qs_strb_catc(self->rets, *(str + loff));
+//     return;
+//   }
+
+//   char newstr[roff - loff + 1];
+//   memcpy(newstr, str + loff, roff + 1); /* weird addressing issues ahead */
+//   qs_strb_strcat(self->rets, newstr, roff - loff + 1);
+// }
 
 void __qs_lib_loop (qs_t * self)
 { /* loops expr until test returns 0 */
@@ -594,10 +565,10 @@ void __qs_lib_loop (qs_t * self)
   free(testv);
 }
 
-void __qs_lib_clr (qs_t * self)
-{ 
-  self->clr = true;
-}
+// void __qs_lib_clr (qs_t * self)
+// { 
+//   self->clr = true;
+// }
 
 void qs_lib (qs_t * self)
 {
@@ -609,14 +580,25 @@ void qs_lib (qs_t * self)
   qs_vmem_def(self, "clc", NULL, __qs_lib_clc);
   // qs_vmem_def(self, "cc", NULL, __qs_lib_cc);
   qs_vmem_def(self, "strlen", NULL, __qs_lib_strlen);
-  qs_vmem_def(self, "trim", NULL, __qs_lib_trim);
+  // qs_vmem_def(self, "trim", NULL, __qs_lib_trim);
   qs_vmem_def(self, "loop", NULL, __qs_lib_loop);
   qs_vmem_def(self, "do", NULL, __qs_lib_do);
   qs_vmem_def(self, "if", NULL, __qs_lib_if);
   qs_vmem_def(self, "chr", NULL, __qs_lib_chr);
   qs_vmem_def(self, "asc", NULL, __qs_lib_asc);
   qs_vmem_def(self, "sys", NULL, __qs_lib_sys);
-  qs_vmem_def(self, "clr", NULL, __qs_lib_clr);
+  // qs_vmem_def(self, "clr", NULL, __qs_lib_clr);
   // qs_vmem_def(self, "brk", NULL, __qs_lib_brk);
   qs_vmem_def(self, "v", NULL, __qs_lib_v);
+
+  qs_vmem_def(self, "os", qs_str_alloc(
+  #ifdef __linux__
+      "__linux__"
+  #elif _WIN32
+      "_WIN32"
+  #elif __APPLE__
+      "__APPLE__"
+  #endif
+  ), NULL);
+
 }

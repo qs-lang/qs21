@@ -40,9 +40,6 @@ typedef struct qs_s
   strb_t * rets;
   char * cfun;
   bool alive;
-  bool clr;
-  // int brk;
-
 } qs_t;
 
 #define STRB_SIZE 256

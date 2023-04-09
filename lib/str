@@ -1,18 +1,12 @@
 
 {>
-/**
- *  (c) 2023 Marcin Ślusarczyk (quakcin)
- *      https://github.com/qs-lang/qs21
- *      String Lib
- */
+	(c) 2023 Marcin Ślusarczyk (quakcin)
+			github.com/qs-lang/qs21
+			
+			String
 }
 
-{>
-	TODO:
-	- remove *trims
-	- add replace
-	- add contains / includes
-}
+{def> nl: {chr> 10}}
 
 {def> str-ltrim> str>
 	{priv> notBlank> 
@@ -47,6 +41,7 @@
 }
 
 {def> str-split-asc> dest> str> code>
+	{arr-rm: {dest}}
 	{priv> off> c> adr>
 		{def> off> 0}
 		{def: {dest}-0>}
@@ -64,7 +59,7 @@
 	}
 }
 
-{def> str->split-chr> dest> str> char>
+{def> str-split-chr> dest> str> char>
 	{str-split-asc: {dest}: {str}: {chr: {char}}}
 }
 
@@ -75,6 +70,7 @@
 }
 
 {def> str-split> dest> str> delim>
+	{arr-rm: {dest}}
 	{priv> delimlen> i> off> sub> adr> idx>
 		{def> delimlen: {strlen: {delim}}}
 		{def> i: {strlen: {str}}}
@@ -102,16 +98,27 @@
 {def> str-join> arr> sub>
 	{do> i> 0: {{arr}-len}>
 		{{arr}-{i}}
-		{if: {clc: {i}> +> 1}> (: {{arr}-len}>{sub}>}
+		{if: {clc: {i}> +> 1}> (: {{arr}-len}> 
+			{sub}
+		>}
 	}
 }
 
 {def> str-replace> str> a> b>
 	{str-split> str-replace-buff: {str}: {a}}
 	{str-join> str-replace-buff: {b}}
+	{arr-rm> str-replace-buff}
 }
 
-{> TODO> def> str-index-of> str> sub>
-	{str-split> str-index-of-test: #{str}#: {sub}}
-	{if: {str-index-of-test-len}> => 0>> 1}
+{def> str-index-of> dest> str> sub>
+	{arr-rm: {dest}}
+	{priv> sublen>
+		{def> sublen: {strlen: {sub}}}
+		{do> i> 0: {clc: {strlen: {str}}> -: {sublen}}>
+			{if: {str-substr: {str}: {i}: {sublen}}> ~: {sub}>
+				{def: {dest}-{{dest}-len}: {i}}
+				{def: {dest}-len: {clc: {{dest}-len}> +> 1}}
+			>}
+		}
+	}
 }
