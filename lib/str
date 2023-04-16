@@ -2,7 +2,7 @@
 {>
 	(c) 2023 Marcin Ślusarczyk (quakcin)
 			github.com/qs-lang/qs21
-			
+
 			String
 }
 
@@ -119,6 +119,33 @@
 				{def: {dest}-{{dest}-len}: {i}}
 				{def: {dest}-len: {clc: {{dest}-len}> +> 1}}
 			>}
+		}
+	}
+}
+
+
+
+{>
+	(c) 2023 github.com/bandurama
+}
+
+{def> str-lower> str>
+	{do> i> 0: {strlen: {str}}>
+		{chr-is-upper: {cc: {str}: {i}}>
+			{chr: {clc: {asc: {str}: {i}}> +> 32}> 0}
+		>
+			{cc: {str}: {i}}
+		}
+	}
+}
+
+
+{def> str-upper> str>
+	{do> i> 0: {strlen: {str}}>
+		{chr-is-lower: {cc: {str}: {i}}>
+			{chr: {clc: {asc: {str}: {i}}> -> 32}> 0}
+		>
+			{cc: {str}: {i}}
 		}
 	}
 }

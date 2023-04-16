@@ -1,9 +1,9 @@
 
 {>
-	(c) 2023 Marcin Ślusarczyk (quakcin)
+	(c) 2023 marcin ślusarczyk (quakcin)
 			github.com/qs-lang/qs21
 			
-			Arrays
+			arrays
 }
 
 {def> arr-do> iter> name> expr>
@@ -51,3 +51,18 @@
 	}
 	{def: {name}-len> 0}
 }
+
+{def> arr-def> name>
+	{arr-rm: {name}}
+	{def: {name}-len: {clc: {arr-def-len}> -> 1}}
+	{do> i> 0: {{name}-len}>
+		{def: {name}-{i}: {v: arr-def-{clc: {i}> +> 1}}}
+	}
+}
+
+{def> arr-map> name> defn>
+	{do> i> 0: {{name}-len}>
+		{def: {name}-{i}: {{defn}: {v: {name}-{i}}}}
+	}
+}
+

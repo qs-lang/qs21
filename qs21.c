@@ -181,6 +181,14 @@ char * qs_eval (qs_t * self, char * expr)
         size_t end = c - 1;
 
         qs_str_trim(expr, &beg, &end);
+        const int len = end - beg + 2;
+
+        if (len <= 0)
+        { /* inlined empty string */
+          beg = off + 1;
+          end = c - 1;
+        }
+
         args[arg] = (char *) malloc(sizeof(char) * (end - beg + 2));
         memcpy(args[arg], expr + beg, end - beg + 1);
         args[arg][end - beg + 1] = '\0';
@@ -335,16 +343,13 @@ void __qs_lib_def (qs_t * self)
   int i; /* {def: NAME: ARG1: ARG2: ...> CEXPR}*/
   for (i = 1; i < len - 1; i++)
   { /* wrap around {priv} */
-    // char buff[0xFF];
-    // sprintf(buff, "%s>{v>%s-%d}>", args[i], args[0], i - 1);
     qs_strb_strcat(strb, args[i], strlen(args[i]));
     qs_strb_catc(strb, '>');
-    // qs_strb_strcat(strb, buff, strlen(buff));
   }
   for (i = 1; i < len - 1; i++)
   { /* append defines */
     char buff[0xFF];
-    sprintf(buff, "{def>%s>{v>%s-%d}}", args[i], args[0], i - 1);
+    sprintf(buff, "{def>%s:{v>%s-%d}}", args[i], args[0], i - 1);
     qs_strb_strcat(strb, buff, strlen(buff));
   }
   qs_strb_strcat(strb, args[len - 1], strlen(args[len - 1]));
@@ -365,7 +370,7 @@ void __qs_lib_use (qs_t * self)
   char * expr = qs_strb_cstr(strb);
 
   int off = 0; /* remove \n and \t */
-  int i; 
+  size_t i; 
   for (i = 0; i < strlen(expr); i++)
     if (expr[i] == '\n' || expr[i] == '\t' || expr[i] == '\r')
       off++;
@@ -498,15 +503,25 @@ void __qs_lib_asc (qs_t * self)
   if (str == NULL)  
     return;
   char buff[32];
+  int idx = qs_vmem_int(self, "asc-1");
+  if (idx < 0 || idx >= (int) strlen(str))
+    return;
+
   sprintf(buff, "%d", (int) str[qs_vmem_int(self, "asc-1")]);
   qs_strb_strcat(self->rets, buff, strlen(buff));
 }
 
 void __qs_lib_v (qs_t * self)
 {
-  char * val = qs_vmem_cstr(self, qs_vmem_cstr(self, "v-0"));
-  if (val != NULL)
-    qs_strb_strcat(self->rets, val, strlen(val));
+  char * name = qs_vmem_cstr(self, "v-0");
+  if (name == NULL)
+    return;
+
+  char * val = qs_vmem_cstr(self, name);
+  if (val == NULL)
+    return;
+
+  qs_strb_strcat(self->rets, val, strlen(val));
 }
 
 void __qs_lib_sys (qs_t * self)
@@ -522,36 +537,6 @@ void __qs_lib_sys (qs_t * self)
   pclose(handle);
 }
 
-/**
- * TODO: Ensure removal is possible,
- *       causes more issues than anything
- *       else, besides str-trim works
- *       very well!
- */
-// void __qs_lib_trim (qs_t * self)
-// {
-//   char * str = qs_vmem_cstr(self, "trim-0");
-//   if (str == NULL)
-//     return;
-
-//   size_t loff = 0;
-//   size_t roff = strlen(str) - 1;
-
-//   qs_str_trim(str, &loff, &roff);
-//   if (roff < loff || roff == -1 || loff >= strlen(str))
-//     return;
-
-
-//   if (roff - loff + 1 == 1)
-//   { /* weird things happen */
-//     qs_strb_catc(self->rets, *(str + loff));
-//     return;
-//   }
-
-//   char newstr[roff - loff + 1];
-//   memcpy(newstr, str + loff, roff + 1); /* weird addressing issues ahead */
-//   qs_strb_strcat(self->rets, newstr, roff - loff + 1);
-// }
 
 void __qs_lib_loop (qs_t * self)
 { /* loops expr until test returns 0 */
@@ -559,15 +544,23 @@ void __qs_lib_loop (qs_t * self)
   char * testv = qs_str_alloc(qs_vmem_cstr(self, "loop-0"));
   while (qs_vmem_int(self, testv) != 0)
   {
-    free(qs_eval(self, expr));
+    char * ret = qs_eval(self, expr);
+    qs_strb_strcat(self->rets, ret, strlen(ret));
+    free(ret);
   }
   free(expr);
   free(testv);
 }
 
-// void __qs_lib_clr (qs_t * self)
-// { 
-//   self->clr = true;
+// void __qs_lib_memdump (qs_t * self)
+// {
+//   vmem_t * ptr;
+//   for (ptr = self->vmem; ptr != NULL; ptr = ptr->next)
+//   {
+//     if (ptr->cfun != NULL)
+//       continue;;
+//     printf("[] [] VMEM: '%s', v: '%s'\n", ptr->name, (char *) ptr->value);
+//   }
 // }
 
 void qs_lib (qs_t * self)
@@ -575,21 +568,17 @@ void qs_lib (qs_t * self)
   qs_vmem_def(self, "puts", NULL, __qs_lib_puts);
   qs_vmem_def(self, "def", NULL, __qs_lib_def);
   qs_vmem_def(self, "use", NULL, __qs_lib_use);
-  // qs_vmem_def(self, "local", NULL, __qs_lib_local);
   qs_vmem_def(self, "priv", NULL, __qs_lib_priv);
   qs_vmem_def(self, "clc", NULL, __qs_lib_clc);
-  // qs_vmem_def(self, "cc", NULL, __qs_lib_cc);
   qs_vmem_def(self, "strlen", NULL, __qs_lib_strlen);
-  // qs_vmem_def(self, "trim", NULL, __qs_lib_trim);
   qs_vmem_def(self, "loop", NULL, __qs_lib_loop);
   qs_vmem_def(self, "do", NULL, __qs_lib_do);
   qs_vmem_def(self, "if", NULL, __qs_lib_if);
   qs_vmem_def(self, "chr", NULL, __qs_lib_chr);
   qs_vmem_def(self, "asc", NULL, __qs_lib_asc);
   qs_vmem_def(self, "sys", NULL, __qs_lib_sys);
-  // qs_vmem_def(self, "clr", NULL, __qs_lib_clr);
-  // qs_vmem_def(self, "brk", NULL, __qs_lib_brk);
   qs_vmem_def(self, "v", NULL, __qs_lib_v);
+  // qs_vmem_def(self, "memdump", NULL, __qs_lib_memdump);
 
   qs_vmem_def(self, "os", qs_str_alloc(
   #ifdef __linux__

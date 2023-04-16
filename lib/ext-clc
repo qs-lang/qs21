@@ -1,0 +1,82 @@
+
+{>
+	(c) 2023 marcin ślusarczyk (quakcin)
+			github.com/qs-lang/qs21
+			
+			extended clc
+}
+
+{def> clc-inc> n>
+	{def: {n}: {clc: {{n}}> +> 1}}
+}
+
+{def> clc-dec> n>
+	{def: {n}: {clc: {{n}}> -> 1}}
+}
+
+{def> clc-add> a> b>
+	{clc: {a}> +: {b}}
+}
+
+{def> clc-sub> a> b>
+	{clc: {a}> -: {b}}
+}
+
+{def> clc-mul> a> b>
+	{clc: {a}> *: {b}}
+}
+
+{def> clc-div> a> b>
+	{clc: {a}> /: {b}}
+}
+
+{def> clc-pow> a> b>
+	{priv> c>
+		{def> c> 1}
+		{do> i> 0: {b}>
+			{def> c: {clc: {c}> *: {a}}}
+		}
+		{c}
+	}
+}
+
+{def> clc-sqrt> n>
+	{if: {n}> (> 2>
+		{n}
+	>
+		{priv> a> b>
+			{def> a> 1255}
+			{do> i> 0> 6>
+				{def> b: {clc: {n}> /: {a}}}
+				{def> a: {clc: {a}> +: {b}> /> 2}}
+			}
+			{a}
+		}
+	}
+}
+
+{def> clc-abs> n>
+	{if: {n}> (> 0>
+		{clc: {n}> *> -1}
+	>
+		{n}
+	}
+}
+
+{def> clc-min> a> b>
+	{if: {a}> (: {b}> {a}> {b}}
+}
+
+{def> clc-max> a> b>
+	{if: {a}> ): {b}> {a}> {b}}
+}
+
+{def> log2> n>
+	{priv> i>
+		{loop> n>
+			{def> n: {clc: {n}> /> 2}}
+			{> incremenet i }
+		}
+		{n}
+	}
+}
