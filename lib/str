@@ -149,3 +149,7 @@
 		}
 	}
 }
+
+{def> str-pad-left> text> amount> with>
+	{do: i: 0: {clc: {amount}> -: {strlen: {text}}}> {with}}{text}
+}
