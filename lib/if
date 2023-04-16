@@ -51,7 +51,7 @@
 	}
 }
 
-{def> if-in-range> min> max> n>
+{def> if-in-range> n> min> max>
 	{if: {n}> ]: {min}>
 		{if: {n}> (: {max}>
 			{if: {if-in-range-len}> => 5> {if-in-range-3}> 1}
