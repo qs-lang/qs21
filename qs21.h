@@ -21,9 +21,10 @@ typedef struct strb_s strb_t;
 
 typedef struct vmem_s
 {
+  struct vmem_s * sub[0xFF];
   void (*cfun)(qs_t *);
-  struct vmem_s * next;
-  char * name;
+  // struct vmem_s * next;
+  // char * name;
   void * value;
 } vmem_t;
 
@@ -70,9 +71,7 @@ char * qs_vmem_arr_cstr (qs_t * self, char * name, int index);
 void qs_strb_strcat (strb_t * self, char * str, size_t strl);
 char * qs_strb_cstr (strb_t * self);
 int qs_vmem_int (qs_t * self, char * name);
-// float qs_vmem_float (qs_t * self, char * name);
 vmem_t * qs_vmem_loc (qs_t * self, char * name);
-void qs_vmem_DUMP (qs_t * self);
 
 char * qs_str_alloc (char * stack);
 strb_t * qs_strb_ctor (void);

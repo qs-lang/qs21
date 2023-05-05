@@ -14,33 +14,42 @@ qs_t * qs_ctor ()
   self->rets = NULL;
   self->cfun = NULL;
 
+  self->vmem = (vmem_t *) malloc(sizeof(struct vmem_s));
+  memset(self->vmem->sub, 0, sizeof(self->vmem->sub));
+  self->vmem->value = NULL;
+  self->vmem->cfun = NULL;
+
   return self;
+}
+
+void qs_vmem_rm_subnodes (vmem_t * org)
+{
+  int i;
+  for (i = 0; i < 0xFF; i++)
+    if (org->sub[i] != NULL)
+      qs_vmem_rm_subnodes(org->sub[i]);
+  if (org->value != NULL)
+    free(org->value);
+  free(org);
 }
 
 void qs_dtor (qs_t * self)
 {
-  // destroy vmem
-  vmem_t * ptr, * nxt;
-  for (ptr = self->vmem; ptr != NULL; ptr = nxt)
-  {
-    nxt = ptr->next;
-
-    if (ptr->value != NULL)
-      free(ptr->value);
-
-    free(ptr->name);
-    free(ptr);
-  }
+  qs_vmem_rm_subnodes(self->vmem);
   free(self);
 }
 
 vmem_t * qs_vmem_loc (qs_t * self, char * name)
 {
-  vmem_t * ptr;
-  for (ptr = self->vmem; ptr != NULL; ptr = ptr->next)
-    if (strcmp(ptr->name, name) == 0)
-      return ptr;
-  return NULL;
+  vmem_t * ptr = self->vmem;
+  int c;
+  for (c = 0; c < strlen(name); c++)
+    if (ptr->sub[(int) name[c]] == NULL)
+      return NULL;
+    else
+      ptr = ptr->sub[(int) name[c]];
+
+  return ptr;
 }
 
 vmem_t * qs_vmem_def (qs_t * self, /*STACK:*/char * name, /*HEAP:*/void * value, void (*cfun)(qs_t *))
@@ -49,11 +58,24 @@ vmem_t * qs_vmem_def (qs_t * self, /*STACK:*/char * name, /*HEAP:*/void * value,
 
   if (v == NULL)
   {
-    v = (vmem_t *) malloc(sizeof(struct vmem_s));
-    v->next = self->vmem;
-    self->vmem = v;
-    v->name = (char*) malloc(sizeof(char) * (strlen(name) + 1));
-    strcpy(v->name, name);
+    v = self->vmem;
+    int c;
+    for (c = 0; c < strlen(name); c++)
+    {
+      if (v->sub[(int) name[c]] == NULL)
+      { /* alloc next tree node */
+        vmem_t * nxt = (vmem_t *) malloc(sizeof(struct vmem_s));
+        memset(nxt->sub, 0, sizeof(nxt->sub));
+        nxt->value = NULL;
+        nxt->cfun = NULL;
+        v->sub[(int) name[c]] = nxt;
+        v = nxt;
+      }
+      else
+      {
+        v = v->sub[(int) name[c]];
+      }
+    }
   }
   else
   {
@@ -161,10 +183,9 @@ char * qs_eval (qs_t * self, char * expr)
         arg = 0;
       }
       else
-      { /* WARN: Might break, watch out */
-        // qs_strb_catc(rets, cc); <-- old way
+      { 
         if ((c + 1) >= strl || expr[c + 1] == '{')
-        { /* new way is wild */
+        { 
           size_t clen = c - off + 1;
           char buff[clen + 1];
           memcpy(buff, expr + off, clen);
@@ -186,7 +207,8 @@ char * qs_eval (qs_t * self, char * expr)
         if (len <= 0)
         { /* inlined empty string */
           beg = off + 1;
-          end = c - 1;
+          // end = c - 1;
+          end = beg - 1; /* WARN: this might break, if so use version from above */
         }
 
         args[arg] = (char *) malloc(sizeof(char) * (end - beg + 2));
@@ -329,11 +351,14 @@ void __qs_lib_puts (qs_t * self)
 void __qs_lib_def (qs_t * self)
 {
   const int len = qs_vmem_int(self, "def-len");
+  if (len <= 0)
+    return;
+
   char * args[len];
   qs_vmem_arr(self, args, "def", len);
 
   if (len == 2)
-  { /* do not wrap in local */
+  { /* do not wrap */
     qs_vmem_def(self, args[0], qs_str_alloc(args[1]), NULL);
     return;
   }
@@ -361,8 +386,10 @@ void __qs_lib_def (qs_t * self)
 void __qs_lib_use (qs_t * self)
 {
   char * path = qs_vmem_cstr(self, "use-0");
-  strb_t * strb = qs_strb_ctor();
   int fd = open(path, O_RDONLY);
+  if (fd < 0) return; /* failed to open */
+
+  strb_t * strb = qs_strb_ctor();
   char buff[0xFF]; size_t r;
   while ((r = read(fd, buff, sizeof(buff))) != 0)
     qs_strb_strcat(strb, buff, r);
@@ -385,7 +412,7 @@ void __qs_lib_use (qs_t * self)
 }
 
 void __qs_lib_priv (qs_t * self)
-{ /* temporarly remove defines */
+{ 
   strb_t * strb = qs_strb_ctor();
   const int len = qs_vmem_int(self, "priv-len");
   int i;
@@ -498,7 +525,7 @@ void __qs_lib_chr (qs_t * self)
 }
 
 void __qs_lib_asc (qs_t * self)
-{ /* {asc: Hello: 0}*/
+{ 
   char * str = qs_vmem_cstr(self, "asc-0");
   if (str == NULL)  
     return;
@@ -552,17 +579,6 @@ void __qs_lib_loop (qs_t * self)
   free(testv);
 }
 
-// void __qs_lib_memdump (qs_t * self)
-// {
-//   vmem_t * ptr;
-//   for (ptr = self->vmem; ptr != NULL; ptr = ptr->next)
-//   {
-//     if (ptr->cfun != NULL)
-//       continue;;
-//     printf("[] [] VMEM: '%s', v: '%s'\n", ptr->name, (char *) ptr->value);
-//   }
-// }
-
 void qs_lib (qs_t * self)
 {
   qs_vmem_def(self, "puts", NULL, __qs_lib_puts);
@@ -578,7 +594,6 @@ void qs_lib (qs_t * self)
   qs_vmem_def(self, "asc", NULL, __qs_lib_asc);
   qs_vmem_def(self, "sys", NULL, __qs_lib_sys);
   qs_vmem_def(self, "v", NULL, __qs_lib_v);
-  // qs_vmem_def(self, "memdump", NULL, __qs_lib_memdump);
 
   qs_vmem_def(self, "os", qs_str_alloc(
   #ifdef __linux__
