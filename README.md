@@ -40,7 +40,7 @@ int main ()
   qs_lib(qvm);
   
   /* finally eval an expression */
-  char * rets = qs_eval(qvm, "{puts: Hello, World!}");
+  char * rets = qs_eval(qvm, "{io> p> Hello, World!}");
   
   /* free up memory */
   free(rets);
