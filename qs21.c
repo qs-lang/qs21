@@ -25,7 +25,7 @@ qs_t * qs_ctor ()
 void qs_vmem_rm_subnodes (vmem_t * org)
 {
   int i;
-  for (i = 0; i < 0xFF; i++)
+  for (i = 0; i < 0x7F; i++)
     if (org->sub[i] != NULL)
       qs_vmem_rm_subnodes(org->sub[i]);
   if (org->value != NULL)
@@ -91,67 +91,43 @@ vmem_t * qs_vmem_def (qs_t * self, /*STACK:*/char * name, /*HEAP:*/void * value,
 strb_t * qs_strb_ctor (void)
 {
   strb_t * self = (strb_t *) malloc(sizeof(struct strb_s));
-  self->head = (strn_t *) malloc(sizeof(struct strn_s));
-  self->head->next = NULL;
-  self->tail = self->head;
-  self->length = 0;
-  self->idx = 0;
+  self->ptr = malloc(STRB_DEF_SIZE);
+  self->size = STRB_DEF_SIZE;
+  self->off = 0;
+  self->ptr[0] = '\0';
   return self;
 }
 
 void qs_strb_catc (strb_t * self, char c)
 {
-  if (self->idx == STRB_SIZE)
+  if (self->off + 1 >= self->size)
   {
-    self->tail->next = (strn_t *) malloc(sizeof(struct strn_s));
-    self->tail = self->tail->next;
-    self->tail->next = NULL;
-    self->idx = 0;
+    self->size += STRB_OVH_SIZE;
+    self->ptr = realloc(self->ptr, self->size);
   }
-  self->tail->chars[self->idx] = c;
-  self->length++;
-  self->idx++;
+  self->ptr[self->off++] = c;
+  self->ptr[self->off] = '\0';
 }
 
 void qs_strb_strcat (strb_t * self, char * str, size_t strl)
 {
-  unsigned int cidx = 0;
-
-  while (cidx < strl)
+  size_t maxs = self->off + strl + STRB_OVH_SIZE;
+  if (self->size <= maxs)
   {
-    if (self->idx == STRB_SIZE)
-    {
-      self->tail->next = (strn_t *) malloc(sizeof(struct strn_s));
-      self->tail = self->tail->next;
-      self->tail->next = NULL;
-      self->idx = 0;
-    }
-    unsigned int size = STRB_SIZE - self->idx;
-    if (size + cidx > strl)
-      size = strl - cidx;
-    memcpy(self->tail->chars + self->idx, str + cidx, size);
-    cidx += size;
-    self->idx += size;
+    self->ptr = realloc(self->ptr, maxs);
+    self->size = maxs;
   }
-  self->length += strl;
+
+  memcpy(self->ptr + self->off, str, strl);
+  self->off = self->off + strl;
+  self->ptr[self->off] = '\0';
 }
 
 char * qs_strb_cstr (strb_t * self)
 {
-  unsigned int idx = 0;
-  char * ret = (char *) malloc(sizeof(char) * (self->length + 1));
-  strn_t * ptr, * nxt;
-  for (ptr = self->head; ptr != NULL; ptr = nxt)
-  {
-    nxt = ptr->next;
-    unsigned int copy = (ptr == self->tail) ? self->idx : STRB_SIZE;
-    memcpy((void *) (ret + idx), (void *) ptr->chars, copy);
-    idx += copy;
-    free(ptr);
-  }
+  char * fin = self->ptr;
   free(self);
-  ret[idx] = '\0';
-  return ret;
+  return fin;
 }
 
 char * qs_eval (qs_t * self, char * expr)
@@ -167,7 +143,7 @@ char * qs_eval (qs_t * self, char * expr)
   unsigned int off = 0;
 
   bool text_mode = true;
-  bool eval_next = true;
+  bool eval_next = false;
 
   for (c = 0; c < strl; c++)
   {
@@ -177,7 +153,7 @@ char * qs_eval (qs_t * self, char * expr)
       if (cc == '{')
       {
         text_mode = false;
-        eval_next = true;
+        eval_next = false;
         nst = 0;
         off = c; 
         arg = 0;
@@ -263,9 +239,11 @@ char * qs_eval (qs_t * self, char * expr)
             }
             else if (vmem->value != NULL)
             { /* evaluate and append to rets */
-              char * cret = qs_eval(self, vmem->value);
+              char * iexpr = qs_str_alloc(vmem->value);
+              char * cret = qs_eval(self, iexpr);
               qs_strb_strcat(rets, cret, strlen(cret));
               free(cret);
+              free(iexpr);
             }
           }
 
@@ -342,11 +320,6 @@ void qs_str_trim (char * str, size_t * beg, size_t * end)
 /*
   qs21 core lib
 */
-
-void __qs_lib_puts (qs_t * self)
-{
-  printf("%s", qs_vmem_cstr(self, "puts-0"));
-}
 
 void __qs_lib_def (qs_t * self)
 {
@@ -469,7 +442,7 @@ void __qs_lib_clc (qs_t * self)
 void __qs_lib_strlen (qs_t * self)
 {
   char buff[32];
-  sprintf(buff, "%ld", strlen(qs_vmem_cstr(self, "strlen-0")));
+  sprintf(buff, "%d", (int) strlen(qs_vmem_cstr(self, "strlen-0")));
   qs_strb_strcat(self->rets, buff, strlen(buff));
 }
 
@@ -564,6 +537,34 @@ void __qs_lib_sys (qs_t * self)
   pclose(handle);
 }
 
+void __qs_lib_io (qs_t * self)
+{ /* puts and sys replacement */
+  char * op = qs_vmem_cstr(self, "io-0");
+  if (op[0] == 'p')
+  { 
+    printf("%s", qs_vmem_cstr(self, "io-1"));
+    return;
+  }
+
+  const char facs[2] = {op[0], '\0'};
+  char * io1 = qs_vmem_cstr(self, "io-1");
+  char * io2 = qs_vmem_cstr(self, "io-2");
+  char buff[0xFF];
+  FILE * handle = op[0] == 't'
+    ? popen(io1, "r")
+    : fopen(io1, facs);
+
+  if (op[0] == 't' || op[0] == 'r')
+    while (fgets(buff, sizeof(buff), handle) != NULL)
+      qs_strb_strcat(self->rets, buff, strlen(buff));
+  else
+    fwrite(io2, 1, strlen(io2), handle);
+
+  if (op[0] == 't')
+    pclose(handle);
+  else
+    fclose(handle);
+}
 
 void __qs_lib_loop (qs_t * self)
 { /* loops expr until test returns 0 */
@@ -579,9 +580,17 @@ void __qs_lib_loop (qs_t * self)
   free(testv);
 }
 
+void __qs_lib_e (qs_t * self)
+{
+  char * expr = qs_str_alloc(qs_vmem_cstr(self, "e-0"));
+  char * rets = qs_eval(self, expr);
+  qs_strb_strcat(self->rets, rets, strlen(rets));
+  free(expr);
+  free(rets);
+}
+
 void qs_lib (qs_t * self)
 {
-  qs_vmem_def(self, "puts", NULL, __qs_lib_puts);
   qs_vmem_def(self, "def", NULL, __qs_lib_def);
   qs_vmem_def(self, "use", NULL, __qs_lib_use);
   qs_vmem_def(self, "priv", NULL, __qs_lib_priv);
@@ -592,9 +601,9 @@ void qs_lib (qs_t * self)
   qs_vmem_def(self, "if", NULL, __qs_lib_if);
   qs_vmem_def(self, "chr", NULL, __qs_lib_chr);
   qs_vmem_def(self, "asc", NULL, __qs_lib_asc);
-  qs_vmem_def(self, "sys", NULL, __qs_lib_sys);
   qs_vmem_def(self, "v", NULL, __qs_lib_v);
-
+  qs_vmem_def(self, "e", NULL, __qs_lib_e);
+  qs_vmem_def(self, "io", NULL, __qs_lib_io);
   qs_vmem_def(self, "os", qs_str_alloc(
   #ifdef __linux__
       "__linux__"

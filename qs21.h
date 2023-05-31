@@ -15,17 +15,17 @@
 
 #define MAX_ARGS_SIZE 32
 #define MAX_ARGN_SIZE 128
+#define STRB_DEF_SIZE 128 /* initial size */
+#define STRB_OVH_SIZE 16  /* overhead size */
 
 typedef struct qs_s qs_t;
 typedef struct strb_s strb_t;
 
 typedef struct vmem_s
 {
-  struct vmem_s * sub[0xFF];
-  void (*cfun)(qs_t *);
-  // struct vmem_s * next;
-  // char * name;
+  struct vmem_s * sub[0x7F];
   void * value;
+  void (*cfun)(qs_t *);
 } vmem_t;
 
 // typedef struct sched_s
@@ -43,20 +43,23 @@ typedef struct qs_s
   bool alive;
 } qs_t;
 
-#define STRB_SIZE 256
+// #define STRB_SIZE 256
 
-typedef struct strn_s
-{
-  char chars[STRB_SIZE];
-  struct strn_s * next;
-} strn_t;
+// typedef struct strn_s
+// {
+//   char chars[STRB_SIZE];
+//   struct strn_s * next;
+// } strn_t;
 
 typedef struct strb_s
 {
-  unsigned int idx;
-  unsigned int length;
-  strn_t * head;
-  strn_t * tail;
+  // unsigned int idx;
+  // unsigned int length;
+  // strn_t * head;
+  // strn_t * tail;
+  char * ptr;
+  size_t size;
+  size_t off;
 } strb_t;
 
 qs_t * qs_ctor ();
