@@ -546,6 +546,14 @@ void __qs_lib_io (qs_t * self)
     return;
   }
 
+  if (op[0] == 'u')
+  {
+    char buff[32];
+    sprintf(buff, "%lu", time(NULL));
+    qs_strb_strcat(self->rets, buff, strlen(buff));
+    return;
+  }
+
   const char facs[2] = {op[0], '\0'};
   char * io1 = qs_vmem_cstr(self, "io-1");
   char * io2 = qs_vmem_cstr(self, "io-2");
