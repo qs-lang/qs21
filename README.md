@@ -1,8 +1,4 @@
 # The Quacking Script Language
-<p align="center">
-  <img src="https://raw.githubusercontent.com/qs-lang/qs-lang.github.io/main/duck.png" width="100" />
-</p>
-
 ## About
 **Quacking Script** is both a minimalistic and powerful scripting language. Its virtual machine, with only a few hundred lines of code, provides all the functionality you will need. It's capable of many things, but most importantly, it does: memory management, process scheduling, and it also has the ability to call your custom C procedures inside your code. Though its embedded standard library isn't particularly huge, it has a large and active [extension repository](https://github.com/qs-lang/ext "Quacking Script Extension Library") that contains a bunch of useful libraries and packages. Among them, you will find *core lib*, which is a suite of the most commonly usunctions and mac, s such as string operatia on functions, mathematical expressions, simple if-like macros, array islation functions and so on. **Quacking Script** has a lot to offer, but most impmanipulation offers **simplicity**. 
 
