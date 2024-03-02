@@ -23,7 +23,8 @@ typedef struct strb_s strb_t;
 
 typedef struct vmem_s
 {
-  struct vmem_s * sub[0x7F];
+  struct vmem_s * next;
+  char * name;
   void * value;
   void (*cfun)(qs_t *);
 } vmem_t;

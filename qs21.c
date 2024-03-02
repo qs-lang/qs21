@@ -1,6 +1,19 @@
 /**
  *  (c) 2023 Marcin Ślusarczyk (quakcin)
  *      https://github.com/qs-lang/qs21
+ * 
+ *  - tree vmem -> simple single linked list [DONE]
+ *  - bring back eval for first argument in call [DONE]
+ *  - remove eval function
+ *  - migrate existing libs to *.qs format
+ *  - create external package manager
+ *    make it use compiler and source
+ *    code for better effect
+ *  - create auto transpiler from C AST 
+ *    directly to qs21_lib bindings so
+ *    implementation of common api's
+ *    frameworks and libs will be really
+ *    fast
  */
 
 #include "qs21.h"
@@ -15,41 +28,47 @@ qs_t * qs_ctor ()
   self->cfun = NULL;
 
   self->vmem = (vmem_t *) malloc(sizeof(struct vmem_s));
-  memset(self->vmem->sub, 0, sizeof(self->vmem->sub));
-  self->vmem->value = NULL;
-  self->vmem->cfun = NULL;
+  memset(self->vmem, 0, sizeof(struct vmem_s));
 
   return self;
 }
 
-void qs_vmem_rm_subnodes (vmem_t * org)
-{
-  int i;
-  for (i = 0; i < 0x7F; i++)
-    if (org->sub[i] != NULL)
-      qs_vmem_rm_subnodes(org->sub[i]);
-  if (org->value != NULL)
-    free(org->value);
-  free(org);
-}
-
 void qs_dtor (qs_t * self)
 {
-  qs_vmem_rm_subnodes(self->vmem);
+  vmem_t * ptr, * nxt;
+  for (ptr = self->vmem; ptr != NULL; ptr = nxt)
+  {
+    nxt = ptr->next;
+
+    if (ptr->value != NULL)
+      free(ptr->value);
+
+    free(ptr->name);
+    free(ptr);
+  }
   free(self);
 }
 
 vmem_t * qs_vmem_loc (qs_t * self, char * name)
 {
-  vmem_t * ptr = self->vmem;
-  int c;
-  for (c = 0; c < strlen(name); c++)
-    if (ptr->sub[(int) name[c]] == NULL)
-      return NULL;
-    else
-      ptr = ptr->sub[(int) name[c]];
+  vmem_t * ptr;
 
-  return ptr;
+  for (ptr = self->vmem->next; ptr != NULL; ptr = ptr->next)
+    if (strcmp(ptr->name, name) == 0)
+      return ptr;
+  
+  return NULL;
+}
+
+void MEMDUMP (qs_t * self)
+{
+  printf("[memdump]\n");
+  vmem_t * ptr; int i = 0;
+  for (ptr = self->vmem; ptr != NULL; ptr = ptr->next)
+  {
+    printf("%d; %p; %s; %p; %p; %p\n", i++, ptr, ptr->name, ptr->value, ptr->cfun, ptr->next);
+  }
+  printf("\n\n");
 }
 
 vmem_t * qs_vmem_def (qs_t * self, /*STACK:*/char * name, /*HEAP:*/void * value, void (*cfun)(qs_t *))
@@ -58,29 +77,30 @@ vmem_t * qs_vmem_def (qs_t * self, /*STACK:*/char * name, /*HEAP:*/void * value,
 
   if (v == NULL)
   {
-    v = self->vmem;
-    int c;
-    for (c = 0; c < strlen(name); c++)
-    {
-      if (v->sub[(int) name[c]] == NULL)
-      { /* alloc next tree node */
-        vmem_t * nxt = (vmem_t *) malloc(sizeof(struct vmem_s));
-        memset(nxt->sub, 0, sizeof(nxt->sub));
-        nxt->value = NULL;
-        nxt->cfun = NULL;
-        v->sub[(int) name[c]] = nxt;
-        v = nxt;
-      }
-      else
-      {
-        v = v->sub[(int) name[c]];
-      }
-    }
+    v = (vmem_t *) malloc(sizeof(struct vmem_s));
+    v->next = self->vmem->next;
+    v->name = qs_str_alloc(name);
+    self->vmem->next = v;
   }
   else
   {
     if (v->value != NULL)
       free(v->value);
+  }
+
+  if (value != NULL && cfun == NULL && strcmp(value, "") == 0)
+  { /* Remove empty variables from vmem */
+    vmem_t * ptr;
+    for (ptr = self->vmem; ptr->next != NULL; ptr = ptr->next)
+    {
+      if (ptr->next == v)
+      {
+        ptr->next = v->next;
+        free(v->name);
+        free(v);
+        return NULL;
+      }
+    }
   }
 
   v->value = value;
@@ -153,7 +173,7 @@ char * qs_eval (qs_t * self, char * expr)
       if (cc == '{')
       {
         text_mode = false;
-        eval_next = false;
+        eval_next = true;
         nst = 0;
         off = c; 
         arg = 0;
@@ -181,10 +201,9 @@ char * qs_eval (qs_t * self, char * expr)
         const int len = end - beg + 2;
 
         if (len <= 0)
-        { /* inlined empty string */
+        { /* empty string */
           beg = off + 1;
-          // end = c - 1;
-          end = beg - 1; /* WARN: this might break, if so use version from above */
+          end = beg - 1; 
         }
 
         args[arg] = (char *) malloc(sizeof(char) * (end - beg + 2));
@@ -210,7 +229,7 @@ char * qs_eval (qs_t * self, char * expr)
           nst -= 1;
         else
         {
-          /* def arguments */ /* TODO: FIXME: Move only to FCALL */
+          /* def arguments */ 
           unsigned int i;
           for (i = 1; i < arg; i++)
           {
@@ -260,10 +279,13 @@ char * qs_eval (qs_t * self, char * expr)
   return qs_strb_cstr(rets);
 }
 
+/**
+ * TODO: Make sure that return "" as char * is valid
+ */
 char * qs_vmem_cstr (qs_t * self, char * name)
 {
   vmem_t * vmem = qs_vmem_loc(self, name);
-  return vmem != NULL ? vmem->value : NULL;
+  return vmem != NULL ? vmem->value : "";
 }
 
 char * qs_vmem_arr_cstr (qs_t * self, char * name, int index)
